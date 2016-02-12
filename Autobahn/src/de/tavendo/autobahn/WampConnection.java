@@ -22,10 +22,10 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.http.message.BasicNameValuePair;
 import org.codehaus.jackson.type.TypeReference;
 
 import android.os.HandlerThread;
+import android.support.v4.util.Pair;
 import android.util.Log;
 
 public class WampConnection extends WebSocketConnection implements Wamp {
@@ -180,7 +180,7 @@ public class WampConnection extends WebSocketConnection implements Wamp {
     * @param sessionHandler   The session handler to fire callbacks on.
     * @param headers		   The headers for connection
     */
-   public void connect(String wsUri, Wamp.ConnectionHandler sessionHandler, WampOptions options, List<BasicNameValuePair> headers) {
+   public void connect(String wsUri, Wamp.ConnectionHandler sessionHandler, WampOptions options, List<Pair> headers) {
 
       mSessionHandler = sessionHandler;
 
@@ -222,7 +222,7 @@ public class WampConnection extends WebSocketConnection implements Wamp {
 
    }
 	
-   public void connect(String wsUri, Wamp.ConnectionHandler sessionHandler, List<BasicNameValuePair> headers) {
+   public void connect(String wsUri, Wamp.ConnectionHandler sessionHandler, List<Pair> headers) {
 
 	   WampOptions options = new WampOptions();
 	   options.setReceiveTextMessagesRaw(true);

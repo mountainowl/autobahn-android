@@ -18,19 +18,19 @@
 
 package de.tavendo.autobahn;
 
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.Looper;
+import android.os.Message;
+import android.support.v4.util.Pair;
+import android.util.Log;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.channels.SocketChannel;
 import java.util.List;
-import org.apache.http.message.BasicNameValuePair;
-
-import android.os.Handler;
-import android.os.HandlerThread;
-import android.os.Looper;
-import android.os.Message;
-import android.util.Log;
 
 public class WebSocketConnection implements WebSocket {
 
@@ -52,7 +52,7 @@ public class WebSocketConnection implements WebSocket {
    private String mWsPath;
    private String mWsQuery;
    private String[] mWsSubprotocols;
-   private List<BasicNameValuePair> mWsHeaders;
+   private List<Pair> mWsHeaders;
 
    private WebSocket.ConnectionHandler mWsHandler;
 
@@ -217,7 +217,7 @@ public class WebSocketConnection implements WebSocket {
    }
 
 
-   public void connect(String wsUri, String[] wsSubprotocols, WebSocket.ConnectionHandler wsHandler, WebSocketOptions options, List<BasicNameValuePair> headers) throws WebSocketException {
+   public void connect(String wsUri, String[] wsSubprotocols, WebSocket.ConnectionHandler wsHandler, WebSocketOptions options, List<Pair> headers) throws WebSocketException {
 
       // don't connect if already connected .. user needs to disconnect first
       //

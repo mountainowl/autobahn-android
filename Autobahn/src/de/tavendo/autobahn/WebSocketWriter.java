@@ -25,8 +25,12 @@ import android.util.Log;
 
 import java.io.IOException;
 import java.net.SocketException;
+import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.Random;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 
 /**
  * WebSocket writer, the sending leg of a WebSockets connection.
@@ -36,7 +40,7 @@ import java.util.Random;
  * background thread) so that it can be formatted and sent out on the
  * underlying TCP socket.
  */
-public class WebSocketWriter extends Handler {
+public class WebSocketWriter extends NioSslPeer {
 
     private static final boolean DEBUG = true;
     private static final String TAG = WebSocketWriter.class.getName();
@@ -59,25 +63,40 @@ public class WebSocketWriter extends Handler {
     /// The send buffer that holds data to send on socket.
     private final ByteBufferOutputStream mBuffer;
 
+    private SSLEngine mSSLEngine;
 
     /**
      * Create new WebSockets background writer.
      *
-     * @param looper  The message looper of the background thread on which
-     *                this object is running.
-     * @param master  The message handler of master (foreground thread).
-     * @param socket  The socket channel created on foreground thread.
-     * @param options WebSockets connection options.
+     * @param looper     The message looper of the background thread on which
+     *                   this object is running.
+     * @param master     The message handler of master (foreground thread).
+     * @param socket     The socket channel created on foreground thread.
+     * @param sslEngine   Optional {@link SSLContext}
+     * @param options    WebSockets connection options.
      */
-    public WebSocketWriter(Looper looper, Handler master, SocketChannel socket, WebSocketOptions options) {
+    public WebSocketWriter(Looper looper, Handler master, SocketChannel socket, SSLEngine sslEngine, WebSocketOptions options) {
 
         super(looper);
 
         mLooper = looper;
         mMaster = master;
         mSocket = socket;
+        mSSLEngine = sslEngine;
         mOptions = options;
         mBuffer = new ByteBufferOutputStream(options.getMaxFramePayloadSize() + 14, 4 * 64 * 1024);
+
+        try {
+            if (null != mSSLEngine) {
+                myAppData = mBuffer.getBuffer();
+                myNetData = ByteBuffer.allocate(mSSLEngine.getSession().getPacketBufferSize());
+                peerNetData = ByteBuffer.allocate(mSSLEngine.getSession().getPacketBufferSize());
+
+                doHandshake(socket, mSSLEngine);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         if (DEBUG) Log.d(TAG, "created");
     }
@@ -93,6 +112,7 @@ public class WebSocketWriter extends Handler {
      *                to be handled within processAppMessage() (in a class derived from
      *                this class).
      */
+
     public void forward(Object message) {
 
         Message msg = obtainMessage();
@@ -392,13 +412,16 @@ public class WebSocketWriter extends Handler {
             processMessage(msg.obj);
 
             // send out buffered data
-            mBuffer.flip();
-            while (mBuffer.remaining() > 0) {
-                // this can block on socket write
-                @SuppressWarnings("unused")
-                int written = mSocket.write(mBuffer.getBuffer());
+            if (null != mSSLEngine) {
+                write(mSocket, mSSLEngine, mBuffer.getBuffer());
+            } else {
+                mBuffer.flip();
+                while (mBuffer.remaining() > 0) {
+                    // this can block on socket write
+                    @SuppressWarnings("unused")
+                    int written = mSocket.write(mBuffer.getBuffer());
+                }
             }
-
         } catch (SocketException e) {
 
             if (DEBUG) Log.d(TAG, "run() : SocketException (" + e.toString() + ")");
@@ -423,6 +446,7 @@ public class WebSocketWriter extends Handler {
      * @param msg An instance of the message types within WebSocketMessage
      *            or a message that is handled in processAppMessage().
      */
+
     protected void processMessage(Object msg) throws IOException, WebSocketException {
 
         if (msg instanceof WebSocketMessage.TextMessage) {
@@ -480,4 +504,6 @@ public class WebSocketWriter extends Handler {
 
         throw new WebSocketException("unknown message received by WebSocketWriter");
     }
+
+
 }

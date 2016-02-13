@@ -87,4 +87,8 @@ public class ByteBufferInputStream extends InputStream {
       return length;
    }
 
+   public ByteBuffer getByteBuffer() {
+      return mBuffer;
+   }
+
 }

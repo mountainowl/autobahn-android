@@ -1,12 +1,12 @@
 /******************************************************************************
  * Copyright 2011-2012 Tavendo GmbH
- * <p/>
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * <p/>
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- * <p/>
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -28,12 +28,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.channels.SocketChannel;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.util.List;
-
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
 
 public class WebSocketConnection implements WebSocket {
 
@@ -64,9 +59,7 @@ public class WebSocketConnection implements WebSocket {
     private boolean mActive;
     private boolean mPrevConnected;
 
-    private SSLContext mSSLContext;
-    private SSLEngine mSSLEngine = null;
-
+    private WebSocketSSLContext mWebSocketSSLContext;
 
     /**
      * Asynchronous socket connector.
@@ -75,6 +68,8 @@ public class WebSocketConnection implements WebSocket {
 
         public void run() {
             Thread.currentThread().setName("WebSocketConnector");
+
+            boolean isSSL = false;
 
 			/*
              * connect TCP socket
@@ -88,12 +83,11 @@ public class WebSocketConnection implements WebSocket {
                         new InetSocketAddress(mWsHost, mWsPort),
                         mOptions.getSocketConnectTimeout());
 
+                // using SSL?
                 if (mWsScheme.equals("wss")) {
-                    try {
-                        initializeSSL();
-                    } catch (NoSuchAlgorithmException | IOException | KeyManagementException e) {
-                        e.printStackTrace();
-                    }
+                    isSSL = true;
+                    if (null == mWebSocketSSLContext)
+                        mWebSocketSSLContext = new WebSocketSSLContext();
                 }
 
                 // before doing any data transfer on the socket, set socket
@@ -103,9 +97,9 @@ public class WebSocketConnection implements WebSocket {
                 mTransportChannel.socket().setTcpNoDelay(
                         mOptions.getTcpNoDelay());
 
-            } catch (IOException e) {
-                onClose(WebSocketConnectionHandler.CLOSE_CANNOT_CONNECT,
-                        e.getMessage());
+            } catch (Throwable t) {
+                Log.e(TAG, "WebSocket initialization error!", t);
+                onClose(WebSocketConnectionHandler.CLOSE_CANNOT_CONNECT, t.getMessage(), t);
                 return;
             }
 
@@ -113,20 +107,14 @@ public class WebSocketConnection implements WebSocket {
                 if (mTransportChannel.finishConnect()) {
 
                     try {
-
-                        if (null != mSSLContext) {
-                            mSSLContext.init(null, null, null);
-                            mSSLEngine = mSSLContext.createSSLEngine(mTransportChannel
+                        if (isSSL) {
+                            mWebSocketSSLContext.doHandshake(mTransportChannel
                                             .socket()
                                             .getInetAddress()
                                             .getHostName(),
                                     mTransportChannel
                                             .socket()
                                             .getPort());
-
-                            mSSLEngine.setUseClientMode(true);
-                            mSSLEngine.beginHandshake();
-
                         }
 
                         // create & start WebSocket reader
@@ -378,8 +366,9 @@ public class WebSocketConnection implements WebSocket {
      *
      * @param code   Close code.
      * @param reason Close reason (human-readable).
+     * @param t      not-null if there was exeption
      */
-    private void onClose(int code, String reason) {
+    private void onClose(int code, String reason, Throwable t) {
         boolean reconnecting = false;
 
         if ((code == ConnectionHandler.CLOSE_CANNOT_CONNECT) ||
@@ -387,13 +376,12 @@ public class WebSocketConnection implements WebSocket {
             reconnecting = scheduleReconnect();
         }
 
-
         if (mWsHandler != null) {
             try {
                 if (reconnecting) {
-                    mWsHandler.onClose(ConnectionHandler.CLOSE_RECONNECT, reason);
+                    mWsHandler.onClose(ConnectionHandler.CLOSE_RECONNECT, reason, t);
                 } else {
-                    mWsHandler.onClose(code, reason);
+                    mWsHandler.onClose(code, reason, t);
                 }
             } catch (Exception e) {
                 if (DEBUG) e.printStackTrace();
@@ -404,6 +392,16 @@ public class WebSocketConnection implements WebSocket {
         }
     }
 
+
+    /**
+     * Common close handler
+     *
+     * @param code   Close code.
+     * @param reason Close reason (human-readable).
+     */
+    private void onClose(int code, String reason) {
+        onClose(code, reason, null);
+    }
 
     /**
      * Create master message handler.
@@ -523,8 +521,12 @@ public class WebSocketConnection implements WebSocket {
                     WebSocketMessage.ServerError error = (WebSocketMessage.ServerError) msg.obj;
                     failConnection(WebSocketConnectionHandler.CLOSE_SERVER_ERROR, "Server error " + error.mStatusCode + " (" + error.mStatusMessage + ")");
 
-                } else {
+                } else if (msg.obj instanceof WebSocketMessage.SSLException) {
 
+                    WebSocketMessage.SSLException error = (WebSocketMessage.SSLException) msg.obj;
+                    failConnection(WebSocketConnectionHandler.CLOSE_SSL_ERROR, "SSL error " + error.mException.getMessage());
+
+                } else {
                     processAppMessage(msg.obj);
 
                 }
@@ -532,10 +534,16 @@ public class WebSocketConnection implements WebSocket {
         };
     }
 
+    public WebSocketSSLContext getWebSocketSSLContext() {
+        return mWebSocketSSLContext;
+    }
+
+    public void setWebSocketSSLContext(WebSocketSSLContext webSocketSSLContext) {
+        this.mWebSocketSSLContext = webSocketSSLContext;
+    }
 
     protected void processAppMessage(Object message) {
     }
-
 
     /**
      * Create WebSockets background writer.
@@ -544,7 +552,7 @@ public class WebSocketConnection implements WebSocket {
 
         mWriterThread = new HandlerThread("WebSocketWriter");
         mWriterThread.start();
-        mWriter = new WebSocketWriter(mWriterThread.getLooper(), mMasterHandler, mTransportChannel, mSSLEngine, mOptions);
+        mWriter = new WebSocketWriter(mWriterThread.getLooper(), mMasterHandler, mTransportChannel, mWebSocketSSLContext.getSSLEngine(), mOptions);
 
         if (DEBUG) Log.d(TAG, "WS writer created and started");
     }
@@ -555,17 +563,9 @@ public class WebSocketConnection implements WebSocket {
      */
     protected void createReader() {
 
-        mReader = new WebSocketReader(mMasterHandler, mTransportChannel, mSSLEngine, mOptions, "WebSocketReader");
+        mReader = new WebSocketReader(mMasterHandler, mTransportChannel, mWebSocketSSLContext.getSSLEngine(),mWriter.getHandShakeKey(),  mOptions, "WebSocketReader");
         mReader.start();
 
         if (DEBUG) Log.d(TAG, "WS reader created and started");
-    }
-
-    public void setSSLContext(SSLContext context) {
-        this.mSSLContext = context;
-    }
-
-    public void initializeSSL() throws NoSuchAlgorithmException, IOException, KeyManagementException {
-        mSSLContext = SSLContext.getInstance("TLSv1.2");
     }
 }

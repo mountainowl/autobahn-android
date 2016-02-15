@@ -65,6 +65,8 @@ public class WebSocketWriter extends NioSslPeer {
 
     private SSLEngine mSSLEngine;
 
+    private String mHandShakeKey;
+
     /**
      * Create new WebSockets background writer.
      *
@@ -179,7 +181,8 @@ public class WebSocketWriter extends NioSslPeer {
         mBuffer.write("Connection: Upgrade");
         mBuffer.crlf();
 
-        mBuffer.write("Sec-WebSocket-Key: " + newHandshakeKey());
+        mHandShakeKey = newHandshakeKey();
+        mBuffer.write("Sec-WebSocket-Key: " + mHandShakeKey);
         mBuffer.crlf();
 
         if (message.mOrigin != null && !message.mOrigin.equals("")) {
@@ -505,5 +508,7 @@ public class WebSocketWriter extends NioSslPeer {
         throw new WebSocketException("unknown message received by WebSocketWriter");
     }
 
-
+    public String getHandShakeKey() {
+        return mHandShakeKey;
+    }
 }

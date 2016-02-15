@@ -18,6 +18,7 @@ package de.tavendo.autobahn;
 
 import android.os.Handler;
 import android.os.Message;
+import android.util.Base64;
 import android.util.Log;
 import android.util.Pair;
 
@@ -25,10 +26,13 @@ import java.io.UnsupportedEncodingException;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLException;
 
 /**
  * WebSocket reader, the receiving leg of a WebSockets connection.
@@ -82,6 +86,7 @@ public class WebSocketReader extends Thread {
 
     protected NioSslPeer nioSslPeer;
     protected SSLEngine mSSLEngine;
+    protected String mSecWebsocketHandShakeKey;
 
     /**
      * Create new WebSockets background reader.
@@ -89,7 +94,7 @@ public class WebSocketReader extends Thread {
      * @param master The message handler of master (foreground thread).
      * @param socket The socket channel created on foreground thread.
      */
-    public WebSocketReader(Handler master, SocketChannel socket, SSLEngine sslEngine, WebSocketOptions options, String threadName) {
+    public WebSocketReader(Handler master, SocketChannel socket, SSLEngine sslEngine, String secWebsocketHandShakeKey, WebSocketOptions options, String threadName) {
 
         super(threadName);
 
@@ -97,6 +102,7 @@ public class WebSocketReader extends Thread {
         mMaster = master;
         mSocket = socket;
         mOptions = options;
+        mSecWebsocketHandShakeKey = secWebsocketHandShakeKey;
 
         mFrameBuffer = ByteBuffer.allocateDirect(options.getMaxFramePayloadSize() + 14);
         mMessagePayload = new NoCopyByteArrayOutputStream(options.getMaxMessagePayloadSize());
@@ -581,6 +587,15 @@ public class WebSocketReader extends Thread {
                 String[] h = line.split(": ");
                 if (h.length == 2) {
                     headers.put(h[0], h[1]);
+                    // if SSL validate Sec-WebSocket-Accept header
+                    if (null != mSSLEngine) {
+                        String expected = createSecretValidation(mSecWebsocketHandShakeKey);
+                        if (!expected.equals(mSecWebsocketHandShakeKey)) {
+                            mSecWebsocketHandShakeKey = null;
+                            throw new RuntimeException(new WebSocketException("Bad Sec-WebSocket-Accept header value."));
+                        }
+                    }
+
                     Log.w(TAG, String.format("'%s'='%s'", h[0], h[1]));
                 }
             }
@@ -683,12 +698,12 @@ public class WebSocketReader extends Thread {
                 }
             } while (!mStopped);
 
-        } catch (WebSocketException e) {
+        } catch (SSLException e) {
 
-            if (DEBUG) Log.d(TAG, "run() : WebSocketException (" + e.toString() + ")");
+            if (DEBUG) Log.d(TAG, "run() : SSLException (" + e.toString() + ")");
 
             // wrap the exception and notify master
-            notify(new WebSocketMessage.ProtocolViolation(e));
+            notify(new WebSocketMessage.SSLException(e));
 
         } catch (SocketException e) {
 
@@ -705,11 +720,22 @@ public class WebSocketReader extends Thread {
             // wrap the exception and notify master
             notify(new WebSocketMessage.Error(e));
 
+
         } finally {
 
             mStopped = true;
         }
 
         if (DEBUG) Log.d(TAG, "ended");
+    }
+
+    private String createSecretValidation(String secret) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-1");
+            md.update((secret + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").getBytes());
+            return Base64.encodeToString(md.digest(), Base64.DEFAULT).trim();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -1,6 +1,6 @@
 # wss://AutobahnAndroid
 
-**Autobahn**|wss://Autobahn integrated NIO and SSL to support secure web socket. 
+**wss://AutobahnAndroid** | A fork of [AutoBahnAndroid project] (https://github.com/crossbario/autobahn-android) support SSL over NIO. 
 
 * **[The WebSocket Protocol](http://tools.ietf.org/html/rfc6455)**
 

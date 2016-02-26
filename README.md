@@ -1,14 +1,11 @@
 # wss://AutobahnAndroid
 
 **Autobahn**|wss://Autobahn integrated NIO and SSL to support secure web socket. 
-**It does not support WAMP
+**It does not support WAMP; Use Autobahn for WAMP - [The Web Application Messaging Protocol (WAMP)](http://wamp.ws/)
 
 * **[The WebSocket Protocol](http://tools.ietf.org/html/rfc6455)**
-* **[The Web Application Messaging Protocol (WAMP)](http://wamp.ws/)**
 
 WebSocket allows [bidirectional real-time messaging on the Web](http://tavendo.com/blog/post/websocket-why-what-can-i-use-it/).
-
-> Note: **Autobahn**|Android implements version 1 of WAMP. Current versions of the other Autobahn project libraries already provide implementations of version 2 of the protocol, with substantially expanded capabilities. An update to **Autobahn**|Android is under development.
 
 ## Show me some code
 
@@ -103,10 +100,9 @@ You can use wss://AutobahnAndroid to create native Android apps talking to WebSo
 
 ## More Information
 
-For more information, take a look at the [project documentation](http://autobahn.ws/android). This provides:
+For more information, take a look at the [AutobahnAndroid project documentation](http://autobahn.ws/android). This provides:
 
-* [a quick 'Getting Started'](http://autobahn.ws/android/gettingstarted.html)
-* [a list of all examples in this repo](http://autobahn.ws/android/examples.html)
-* [a full API reference](http://autobahn.ws/python/packages.html)
-
+* [AutobahnAndroid - quick 'Getting Started'](http://autobahn.ws/android/gettingstarted.html)
+* [AutobahnAndroid a list of all examples in this repo](http://autobahn.ws/android/examples.html)
+* [Autobahn - a full API reference](http://autobahn.ws/python/packages.html)
 

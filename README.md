@@ -1,7 +1,7 @@
 # wss://AutobahnAndroid
 
 **Autobahn**|wss://Autobahn integrated NIO and SSL to support secure web socket. **
-**It does not support WAMP; Use Autobahn for WAMP - [The Web Application Messaging Protocol (WAMP)](http://wamp.ws/)**
+* **It does not support WAMP; Use Autobahn for WAMP - [The Web Application Messaging Protocol (WAMP)](http://wamp.ws/)**
 
 * **[The WebSocket Protocol](http://tools.ietf.org/html/rfc6455)**
 

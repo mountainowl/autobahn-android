@@ -115,16 +115,9 @@ private void start() {
 
 ## Features
 
-* library for WebSocket and Secure-WebSocket clients
-* implements WebSocket RFC6455, Draft Hybi-10+ 
-* works on Android 2.2+
-* very good standards conformance
-* high-performance asynchronous design
-* easy to use API
-* seamless integration in Android UI apps
-* no (really none) network activity on UI thread
-* Open-source (Apache 2 license)
-
+* Same as [AndroidAutobahn](http://autobahn.ws/android)
+* Implements secure web sockets using SSL over pure-NIO
+ 
 You can use wss://AutobahnAndroid to create native Android apps talking to WebSocket servers.
 
 ## More Information

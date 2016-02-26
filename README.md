@@ -124,7 +124,7 @@ private void testPubSub() {
 
 ## Features
 
-* library for WebSocket and WAMP clients
+* library for WebSocket and Secure Websocket clients
 * implements WebSocket RFC6455, Draft Hybi-10+ and WAMP v1
 * works on Android 2.2+
 * very good standards conformance
@@ -134,7 +134,7 @@ private void testPubSub() {
 * no (really none) network activity on UI thread
 * Open-source (Apache 2 license)
 
-You can use AutobahnAndroid to create native Android apps talking to WebSocket servers or any WAMP compatible server.
+You can use AutobahnAndroid to create native Android apps talking to WebSocket servers.
 
 ## More Information
 
@@ -144,7 +144,3 @@ For more information, take a look at the [project documentation](http://autobahn
 * [a list of all examples in this repo](http://autobahn.ws/android/examples.html)
 * [a full API reference](http://autobahn.ws/python/packages.html)
 
-
-## Get in touch
-
-Get in touch on IRC #autobahn on chat.freenode.net or join the [mailing list](http://groups.google.com/group/autobahnws).

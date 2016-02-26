@@ -1,12 +1,12 @@
 /******************************************************************************
  * Copyright 2011-2012 Tavendo GmbH
- * <p/>
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * <p/>
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- * <p/>
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,10 +20,11 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.support.v4.util.Pair;
-import android.util.Base64;
 import android.util.Log;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
@@ -70,14 +71,15 @@ public class WebSocketWriter extends NioSslPeer {
     /**
      * Create new WebSockets background writer.
      *
-     * @param looper     The message looper of the background thread on which
-     *                   this object is running.
-     * @param master     The message handler of master (foreground thread).
-     * @param socket     The socket channel created on foreground thread.
-     * @param sslEngine   Optional {@link SSLContext}
-     * @param options    WebSockets connection options.
+     * @param looper       The message looper of the background thread on which
+     *                     this object is running.
+     * @param master       The message handler of master (foreground thread).
+     * @param socket       The socket channel created on foreground thread.
+     * @param sslEngine    Optional {@link SSLContext}
+     * @param handShakeKey Handshake key
+     * @param options      WebSockets connection options.
      */
-    public WebSocketWriter(Looper looper, Handler master, SocketChannel socket, SSLEngine sslEngine, WebSocketOptions options) {
+    public WebSocketWriter(Looper looper, Handler master, SocketChannel socket, SSLEngine sslEngine, String handShakeKey, WebSocketOptions options) {
 
         super(looper);
 
@@ -85,6 +87,7 @@ public class WebSocketWriter extends NioSslPeer {
         mMaster = master;
         mSocket = socket;
         mSSLEngine = sslEngine;
+        mHandShakeKey = handShakeKey;
         mOptions = options;
         mBuffer = new ByteBufferOutputStream(options.getMaxFramePayloadSize() + 14, 4 * 64 * 1024);
 
@@ -122,7 +125,6 @@ public class WebSocketWriter extends NioSslPeer {
         sendMessage(msg);
     }
 
-
     /**
      * Notify the master (foreground thread).
      *
@@ -134,19 +136,6 @@ public class WebSocketWriter extends NioSslPeer {
         msg.obj = message;
         mMaster.sendMessage(msg);
     }
-
-
-    /**
-     * Create new key for WebSockets handshake.
-     *
-     * @return WebSockets handshake key (Base64 encoded).
-     */
-    private String newHandshakeKey() {
-        final byte[] ba = new byte[16];
-        mRng.nextBytes(ba);
-        return Base64.encodeToString(ba, Base64.NO_WRAP);
-    }
-
 
     /**
      * Create new (random) frame mask.
@@ -181,7 +170,6 @@ public class WebSocketWriter extends NioSslPeer {
         mBuffer.write("Connection: Upgrade");
         mBuffer.crlf();
 
-        mHandShakeKey = newHandshakeKey();
         mBuffer.write("Sec-WebSocket-Key: " + mHandShakeKey);
         mBuffer.crlf();
 
@@ -283,6 +271,30 @@ public class WebSocketWriter extends NioSslPeer {
         sendFrame(2, true, message.mPayload);
     }
 
+    /**
+     * Send WebSockets streaming binary message
+     *
+     * @param message
+     * @throws IOException
+     */
+    private void sendStream(WebSocketMessage.BinaryStreamMessage message) throws IOException {
+        InputStream is = new FileInputStream(message.mPfd.getFileDescriptor());
+        int offset = 0, bytesRead = 0;
+        byte[] buffer = new byte[4096];
+        boolean fin = false;
+
+        // send header
+        byte[] payload = message.mHeader.getBytes("UTF-8");
+        sendFrame(2, false, payload);
+
+        // stream rest of the bytes
+        while (offset < buffer.length && (bytesRead = is.read(buffer, offset, buffer.length - offset)) >= 0) {
+            if (bytesRead != buffer.length)
+                fin = true;
+
+            sendFrame(2, fin, buffer);
+        }
+    }
 
     /**
      * Send WebSockets text message.
@@ -463,6 +475,10 @@ public class WebSocketWriter extends NioSslPeer {
         } else if (msg instanceof WebSocketMessage.BinaryMessage) {
 
             sendBinaryMessage((WebSocketMessage.BinaryMessage) msg);
+
+        } else if (msg instanceof WebSocketMessage.BinaryStreamMessage) {
+
+            sendStream((WebSocketMessage.BinaryStreamMessage) msg);
 
         } else if (msg instanceof WebSocketMessage.Ping) {
 

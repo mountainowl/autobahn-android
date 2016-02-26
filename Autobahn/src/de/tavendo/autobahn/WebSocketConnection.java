@@ -21,14 +21,17 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 import android.support.v4.util.Pair;
+import android.util.Base64;
 import android.util.Log;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.channels.SocketChannel;
 import java.util.List;
+import java.util.Random;
 
 public class WebSocketConnection implements WebSocket {
 
@@ -61,6 +64,8 @@ public class WebSocketConnection implements WebSocket {
 
     private WebSocketSSLContext mWebSocketSSLContext;
 
+    private String mHandShakeKey;
+
     /**
      * Asynchronous socket connector.
      */
@@ -70,6 +75,8 @@ public class WebSocketConnection implements WebSocket {
             Thread.currentThread().setName("WebSocketConnector");
 
             boolean isSSL = false;
+
+            mHandShakeKey = newHandshakeKey();
 
 			/*
              * connect TCP socket
@@ -177,6 +184,10 @@ public class WebSocketConnection implements WebSocket {
         mWriter.forward(new WebSocketMessage.BinaryMessage(payload));
     }
 
+    @Override
+    public void sendStream(String header, FileInputStream fis) throws IOException {
+        mWriter.forward(new WebSocketMessage.BinaryStreamMessage(header, fis));
+    }
 
     public boolean isConnected() {
         return mTransportChannel != null && mTransportChannel.isConnected();
@@ -552,7 +563,7 @@ public class WebSocketConnection implements WebSocket {
 
         mWriterThread = new HandlerThread("WebSocketWriter");
         mWriterThread.start();
-        mWriter = new WebSocketWriter(mWriterThread.getLooper(), mMasterHandler, mTransportChannel, mWebSocketSSLContext.getSSLEngine(), mOptions);
+        mWriter = new WebSocketWriter(mWriterThread.getLooper(), mMasterHandler, mTransportChannel, mWebSocketSSLContext.getSSLEngine(), mHandShakeKey, mOptions);
 
         if (DEBUG) Log.d(TAG, "WS writer created and started");
     }
@@ -563,9 +574,23 @@ public class WebSocketConnection implements WebSocket {
      */
     protected void createReader() {
 
-        mReader = new WebSocketReader(mMasterHandler, mTransportChannel, mWebSocketSSLContext.getSSLEngine(),mWriter.getHandShakeKey(),  mOptions, "WebSocketReader");
+        mReader = new WebSocketReader(mMasterHandler, mTransportChannel, mWebSocketSSLContext.getSSLEngine(), mHandShakeKey, mOptions, "WebSocketReader");
         mReader.start();
 
         if (DEBUG) Log.d(TAG, "WS reader created and started");
     }
+
+    /**
+     * Create new key for WebSockets handshake.
+     *
+     * @return WebSockets handshake key (Base64 encoded).
+     */
+    private String newHandshakeKey() {
+        final Random mRng = new Random();
+
+        final byte[] ba = new byte[16];
+        mRng.nextBytes(ba);
+        return Base64.encodeToString(ba, Base64.NO_WRAP);
+    }
+
 }

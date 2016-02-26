@@ -16,8 +16,11 @@
 
 package de.tavendo.autobahn;
 
+import android.os.ParcelFileDescriptor;
 import android.support.v4.util.Pair;
 
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -147,6 +150,18 @@ public class WebSocketMessage {
 
         BinaryMessage(byte[] payload) {
             mPayload = payload;
+        }
+    }
+
+    // stream of binary message
+    public static class BinaryStreamMessage extends Message {
+        public ParcelFileDescriptor mPfd;
+        public String mHeader;
+
+        public BinaryStreamMessage(String header, FileInputStream fis) throws IOException {
+            mPfd = ParcelFileDescriptor.dup(fis.getFD());
+            fis.close();
+            mHeader = header;
         }
     }
 

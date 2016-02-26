@@ -1,5 +1,8 @@
 package de.tavendo.autobahn;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+
 public interface WebSocket {
 
     /**
@@ -97,6 +100,8 @@ public interface WebSocket {
     public boolean isConnected();
 
     public void sendBinaryMessage(byte[] payload);
+
+    public void sendStream(String header, FileInputStream fis) throws IOException;
 
     public void sendRawTextMessage(byte[] payload);
 

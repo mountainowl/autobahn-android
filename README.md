@@ -49,7 +49,37 @@ private void start() {
 ```java
 private final WebSocketConnection mConnection = new WebSocketConnection();
 
-/**  * Trust all certificates by default; useful for self-signed certificates and testing; DO NOT USE FOR PRODUCTION CODE  *  * @return  */ public final TrustManager[] createTrustAllManager() {      TrustManager[] trustAllCerts = null;     if (BuildConfig.DEBUG) {          System.err.println("*** TRUSTING ALL CERTIFICATES ***");          trustAllCerts = new TrustManager[]{                 new X509TrustManager() {                     public X509Certificate[] getAcceptedIssuers() {                         X509Certificate[] myTrustedAnchors = new X509Certificate[0];                         return myTrustedAnchors;                     }                      @Override                     public void checkClientTrusted(X509Certificate[] certs, String authType) {                     }                      @Override                     public void checkServerTrusted(X509Certificate[] certs, String authType) {                     }                 }          };     } else {         throw new RuntimeException(new CertificateException("\n\n***TRUST ALL CERTIFICATES DISABLED IN NON-DEBUG MODE ***\n\n"));     }      return trustAllCerts; }
+/**  
+ * Trust all certificates by default; useful for self-signed certificates and testing; 
+ * DO NOT USE FOR PRODUCTION CODE  
+ *  
+ * @return  
+ */ 
+public final TrustManager[] createTrustAllManager() {
+	TrustManager[] trustAllCerts = null;     
+	if (BuildConfig.DEBUG) {          
+		System.err.println("*** TRUSTING ALL CERTIFICATES ***");          
+		trustAllCerts = new TrustManager[] {                 
+			new X509TrustManager() {
+				public X509Certificate[] getAcceptedIssuers() {
+					X509Certificate[] myTrustedAnchors = new X509Certificate[0];
+					return myTrustedAnchors;
+				}
+
+				@Override
+				public void checkClientTrusted(X509Certificate[] certs, String authType) {
+				}
+				
+				@Override
+				public void checkServerTrusted(X509Certificate[] certs, String authType) {
+				}
+			}
+		};
+	} else {
+		throw new RuntimeException(new CertificateException("\n\n***TRUST ALL CERTIFICATES DISABLED IN NON-DEBUG MODE ***\n\n"));     
+	}      
+	return trustAllCerts; 
+}
 
 private void start() {
 

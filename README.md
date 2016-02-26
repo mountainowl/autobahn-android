@@ -1,4 +1,4 @@
-# AutobahnAndroid
+# wss://AutobahnAndroid
 
 My attempt to integrate SSL with NIO. 
 
